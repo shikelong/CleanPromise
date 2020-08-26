@@ -54,6 +54,10 @@ class Promise {
 
   }
 
+  get status() {
+    return this.#status;
+  }
+
   then(onFulfilled, onRejected) {
 
     if (!isFunction(onFulfilled)){
@@ -105,6 +109,8 @@ class Promise {
               hasSettled = true;
               return reject(reason);
             });
+          } else {
+            return resolve(x);
           }
         } catch (e) {
           if (hasSettled){
@@ -154,7 +160,7 @@ class Promise {
   }
 
   static resolve() {
-
+    
   }
 
   static reject() {
@@ -180,5 +186,22 @@ class Promise {
   }
 }
 
+
+
 module.exports = Promise;
 
+
+// var dummy = { dummy: "dummy" };
+// var adapterResolved = function (value) {
+//   var d = Promise.deferred();
+//   d.resolve(value);
+//   return d.promise;
+// };
+
+
+
+// var temp = adapterResolved(dummy);
+
+// temp.then(undefined, function(){}).then((v) => {
+//   console.log('v: ', v);
+// }, undefined);
