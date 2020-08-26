@@ -117,7 +117,7 @@ class Promise {
             return;
           }
           hasSettled = true;
-          reject(e);
+          return reject(e);
         }
 
       } else {
