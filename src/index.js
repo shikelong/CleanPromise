@@ -12,8 +12,6 @@ const _STATUS = {
 class Promise {
   #status
   #value
-  #reason
-
   #callbacks = [];
 
   constructor(executor) {
@@ -28,9 +26,10 @@ class Promise {
 
     function resolve(value) {
       if (self.#status === _STATUS.pending) {
-        self.#value = value;
-        self.#status = _STATUS.fulfilled;
+
         globalThis.queueMicrotask(() => {
+          self.#value = value;
+          self.#status = _STATUS.fulfilled;
           self.#callbacks.forEach(callback => callback.onFulfilled(self.#value))
         })
       }
@@ -38,10 +37,11 @@ class Promise {
 
     function reject(error) {
       if (self.#status === _STATUS.pending) {
-        self.#reason = error;
-        self.#status = _STATUS.rejected;
+
         globalThis.queueMicrotask(() => {
-          self.#callbacks.forEach(callback => callback.onRejected(self.#reason))
+          self.#value = error;
+          self.#status = _STATUS.rejected;
+          self.#callbacks.forEach(callback => callback.onRejected(self.#value))
         })
       }
     }
@@ -54,56 +54,54 @@ class Promise {
 
   }
 
-  get status() {
-    return this.#status;
-  }
-
   then(onFulfilled, onRejected) {
 
-    if (!isFunction(onFulfilled)){
+    if (!isFunction(onFulfilled)) {
       onFulfilled = v => v;
     }
-    if (!isFunction(onRejected)){
+    if (!isFunction(onRejected)) {
       onRejected = err => {throw err};
     }
 
+    let newPromise, self = this;
+
     //avoid repeat code
-    function excuteChildProcess(valueOrReason, onDone, resolve, reject, newPromise){
+    function excuteChildProcess(value, onDone, resolve, reject, newPromise) {
       try {
-        let result = onDone(valueOrReason);
+        let result = onDone(value);
         resolver(newPromise, result, resolve, reject);
-      } catch (e){
+      } catch (e) {
         reject(e);
       }
     }
 
+
     //The promise resolution procedure
-    function resolver(newPromise, x, resolve, reject){
-      if (newPromise === x){
+    function resolver(newPromise, x, resolve, reject) {
+      if (newPromise === x) {
         return reject(new TypeError("new promise cannot be equal with x"));
       }
 
       let hasSettled = false;
-      
-      if (x instanceof Promise){
-        if (x.#status === _STATUS.pending){
-          //?
+
+      if (x instanceof Promise) {
+        if (x.#status === _STATUS.pending) {
           x.then((v) => resolver(newPromise, v, resolve, reject), reject);
         } else {
           x.then(resolve, reject);
         }
-      } else if (x !== null && (isFunction(x) || typeof x === "object")){
+      } else if (x !== null && (isFunction(x) || typeof x === "object")) {
         try {
           let then = x.then;
-          if (isFunction(then)){
-            then.call(x, (value) => {
-              if (hasSettled){
+          if (isFunction(then)) {
+            then.call(x, (y) => {
+              if (hasSettled) {
                 return;
               }
               hasSettled = true;
-              return resolver(newPromise, value, resolve, reject);
+              return resolver(newPromise, y, resolve, reject);
             }, (reason) => {
-              if (hasSettled){
+              if (hasSettled) {
                 return;
               }
               hasSettled = true;
@@ -113,7 +111,7 @@ class Promise {
             return resolve(x);
           }
         } catch (e) {
-          if (hasSettled){
+          if (hasSettled) {
             return;
           }
           hasSettled = true;
@@ -125,13 +123,12 @@ class Promise {
       }
     }
 
-    let newPromise;
     switch (this.#status) {
       case _STATUS.pending:
         newPromise = new Promise((resolve, reject) => {
           this.#callbacks.push({
             onFulfilled: (value) => excuteChildProcess(value, onFulfilled, resolve, reject, newPromise),
-            onRejected: (reason) => excuteChildProcess(reason, onRejected, resolve, reject, newPromise)
+            onRejected: (value) => excuteChildProcess(value, onRejected, resolve, reject, newPromise)
           })
         });
         break;
@@ -142,15 +139,15 @@ class Promise {
         break;
       case _STATUS.rejected:
         newPromise = new Promise((resolve, reject) => {
-          global.queueMicrotask(() => excuteChildProcess(this.#reason, onRejected, resolve, reject, newPromise))
+          global.queueMicrotask(() => excuteChildProcess(this.#value, onRejected, resolve, reject, newPromise))
         });
         break;
     }
 
     return newPromise;
+
   }
 
-  //TODO:
   catch(onRejected) {
 
   }
@@ -160,7 +157,7 @@ class Promise {
   }
 
   static resolve() {
-    
+
   }
 
   static reject() {
@@ -189,19 +186,3 @@ class Promise {
 
 
 module.exports = Promise;
-
-
-// var dummy = { dummy: "dummy" };
-// var adapterResolved = function (value) {
-//   var d = Promise.deferred();
-//   d.resolve(value);
-//   return d.promise;
-// };
-
-
-
-// var temp = adapterResolved(dummy);
-
-// temp.then(undefined, function(){}).then((v) => {
-//   console.log('v: ', v);
-// }, undefined);
