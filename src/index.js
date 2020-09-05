@@ -149,27 +149,56 @@ class Promise {
   }
 
   catch(onRejected) {
-
+    return this.then(null, onRejected);
   }
 
-  finally() {
-
+  finally(onFinally) {
+    //TODO
   }
 
-  static resolve() {
-
+  static resolve(value) {
+    return new Promise((resolve, reject) => {
+      resolve(value);
+    });
   }
 
-  static reject() {
-
+  static reject(error) {
+    return new Promise((resolve, reject) => {
+      reject(error);
+    });
   }
 
-  static race() {
-
+  static race(promises) {
+    return new Promise((resolve, reject) => {
+      for (let i = 0; i < promises.length; i++) {
+        const promise = promises[i];
+        promise.then((value) => {
+          resolve(value);
+        }, (reason) => {
+          reject(reason);
+        });
+      }
+    });
   }
 
-  static all() {
-
+  static all(promises) {
+    let fulfilledCounts = 0;
+    const promisesCount = promises.length;
+    return new Promise((resolve, reject) => {
+      const values = new Array(promisesCount);
+    
+      for (let i = 0; i < promisesCount; i++) {
+        const promise = promises[i];
+        promise.then((value) => {
+          values[i] = value;
+          if (++fulfilledCounts === promisesCount){
+            resolve(values);
+          }
+        }, (reason) => {
+          reject(reason);
+        });
+      }
+    });
   }
 
   //for unit-test providered by promises-aplus-tests 
@@ -182,7 +211,5 @@ class Promise {
     return dfd;
   }
 }
-
-
 
 module.exports = Promise;
